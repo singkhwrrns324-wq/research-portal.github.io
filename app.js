@@ -131,6 +131,8 @@ async function loadData(){
       if(!r.field) r.field=proposal.field||'';
       if(!r.source) r.source=proposal.source||'';
       if(!r.link) r.link=proposal.link||'';
+      // หมวดหมู่ของเว็บไซต์ยึดจาก 'คณะที่เกี่ยวข้อง' ตามโครงสร้าง Google Sheets
+      r.category=r.faculty||proposal.faculty||'';
     });
     if(mapped.length){DATA=mapped;PROPOSED=p;DATA_SOURCE='google';}
     else throw new Error('No research rows');
@@ -148,7 +150,7 @@ function categoriesList(){return ['ทั้งหมด',...new Set(DATA.map(r=
 function opts(arr,sel){return arr.map(x=>`<option value="${esc(x)}" ${x===sel?'selected':''}>${esc(x)}</option>`).join('')}
 function results(){
  let a=DATA.filter(r=>{
-   const q=lower(S.q), hay=[r.title,r.author,r.faculty,r.field,r.category,r.source,r.related,r.reviewResult].join(' ').toLocaleLowerCase('th-TH');
+   const q=lower(S.q), hay=[r.id,r.title,r.author,r.faculty,r.field,r.category,r.source,r.related,r.reviewResult].join(' ').toLocaleLowerCase('th-TH');
    return (!q||hay.includes(q))&&(S.year==='ทั้งหมด'||r.year===S.year)&&(S.faculty==='ทั้งหมด'||r.faculty===S.faculty)&&(S.field==='ทั้งหมด'||r.field===S.field)&&(S.category==='ทั้งหมด'||r.category===S.category);
  });
  if(S.sort==='new')a.sort((x,y)=>String(y.year).localeCompare(String(x.year),'th'));
@@ -158,8 +160,8 @@ function results(){
 }
 function status(r){return r.checked?'ตรวจสอบแล้ว':'อยู่ระหว่างการตรวจสอบ'}
 function statusClass(r){return r.checked?'ok':'pending'}
-function card(r){return `<button class="research" data-id="${esc(r.id)}"><span class="doc">▤</span><span class="rbody"><span class="rtitle">${esc(r.title||'ไม่ระบุชื่อเรื่อง')}</span><span class="meta">${esc(r.author||'ไม่ระบุผู้แต่ง')} &nbsp;|&nbsp; ${esc(r.faculty||'ไม่ระบุคณะ')} &nbsp;|&nbsp; ปี ${esc(r.year||'-')}</span><span class="tags">${[r.category,r.field].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span></span><span class="go">›</span></button>`}
-function searchBox(){return `<div class="searchbox"><input id="pageQuery" value="${esc(S.q)}" placeholder="พิมพ์คำสำคัญ ชื่อเรื่อง ผู้แต่ง หรือหัวข้อที่สนใจ..."><button id="doSearch">⌕ &nbsp;ค้นหา</button></div>`}
+function card(r){return `<button class="research" data-id="${esc(r.id)}"><span class="doc">▤</span><span class="rbody"><span class="rtitle">${esc(r.title||'ไม่ระบุชื่อเรื่อง')}</span><span class="meta">ID: ${esc(r.id||'-')} &nbsp;|&nbsp; ${esc(r.author||'ไม่ระบุผู้แต่ง')} &nbsp;|&nbsp; ${esc(r.faculty||'ไม่ระบุคณะ')} &nbsp;|&nbsp; ปี ${esc(r.year||'-')}</span><span class="tags">${[r.category,r.field].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span></span><span class="go">›</span></button>`}
+function searchBox(){return `<div class="searchbox"><input id="pageQuery" value="${esc(S.q)}" placeholder="ค้นหาด้วย ID งานวิจัย ชื่อเรื่อง ผู้แต่ง หรือหัวข้อที่สนใจ..."><button id="doSearch">⌕ &nbsp;ค้นหา</button></div>`}
 function shellHome(){
  const list=results().slice(0,4);
  const recommended=PROPOSED.filter(x=>x.title).slice(0,3);
@@ -170,11 +172,11 @@ function shellHome(){
 }
 function sidebar(){
  const cats=categoriesList().filter(x=>x!=='ทั้งหมด').slice(0,6);
- return `<aside class="side"><section class="card side-card"><h3>▤ ค้นหาตามหมวดหมู่</h3><div class="cat-list">${cats.length?cats.map(c=>`<button class="cat" data-cat="${esc(c)}"><span>▣ &nbsp;${esc(c)}</span><b>›</b></button>`).join(''):`<div class="muted">ยังไม่มีหมวดหมู่</div>`}</div></section><section class="card side-card"><h3>✓ สถานะการตรวจสอบ</h3><div class="notice"><b>${DATA.filter(r=>r.checked).length} งานวิจัย</b><small>ตรวจสอบเสร็จแล้ว</small></div><div class="notice"><b>${DATA.filter(r=>!r.checked).length} งานวิจัย</b><small>อยู่ระหว่างการตรวจสอบ</small></div></section><section class="card side-card quote"><div class="quote-icon">▣</div><p>“เพราะงานวิจัย...คือก้าวสำคัญของการพัฒนาความรู้”</p></section></aside>`
+ return `<aside class="side"><section class="card side-card"><h3>▤ ค้นหาตามคณะที่เกี่ยวข้อง</h3><div class="cat-list">${cats.length?cats.map(c=>`<button class="cat" data-cat="${esc(c)}"><span>▣ &nbsp;${esc(c)}</span><b>›</b></button>`).join(''):`<div class="muted">ยังไม่มีหมวดหมู่</div>`}</div></section><section class="card side-card"><h3>✓ สถานะการตรวจสอบ</h3><div class="notice"><b>${DATA.filter(r=>r.checked).length} งานวิจัย</b><small>ตรวจสอบเสร็จแล้ว</small></div><div class="notice"><b>${DATA.filter(r=>!r.checked).length} งานวิจัย</b><small>อยู่ระหว่างการตรวจสอบ</small></div></section><section class="card side-card quote"><div class="quote-icon">▣</div><p>“เพราะงานวิจัย...คือก้าวสำคัญของการพัฒนาความรู้”</p></section></aside>`
 }
 function searchPage(){
  const a=results();
- return `<div class="pagehead"><div class="crumb">หน้าหลัก / ค้นหางานวิจัย</div><h1>ค้นหางานวิจัย</h1><p>ค้นหาและคัดกรองงานวิจัยตามข้อมูลจากคลังงานวิจัย</p></div><div class="search-layout"><section class="card results">${searchBox()}<div class="result-count">พบงานวิจัย ${a.length} รายการ</div><div class="list">${a.length?a.map(card).join(''):`<div class="empty">ไม่พบงานวิจัยที่ตรงกับคำค้นหา<br>ลองเปลี่ยนคำค้นหาหรือปรับตัวกรอง</div>`}</div></section><aside class="card filter"><h3>คัดกรอง</h3><div class="field"><label>ปี</label><select id="year">${opts(years(),S.year)}</select></div><div class="field"><label>คณะ</label><select id="faculty">${opts(faculties(),S.faculty)}</select></div><div class="field"><label>สาขาวิชา</label><select id="field">${opts(fields(),S.field)}</select></div><div class="field"><label>หมวดหมู่</label><select id="category">${opts(categoriesList(),S.category)}</select></div><div class="field"><label>เรียงตาม</label><select id="sortSelect"><option value="new" ${S.sort==='new'?'selected':''}>ใหม่ → เก่า</option><option value="old" ${S.sort==='old'?'selected':''}>เก่า → ใหม่</option><option value="az" ${S.sort==='az'?'selected':''}>ชื่อเรื่อง A → Z</option></select></div><button class="clear" id="clear">ล้างตัวกรองทั้งหมด</button></aside></div>`
+ return `<div class="pagehead"><div class="crumb">หน้าหลัก / ค้นหางานวิจัย</div><h1>ค้นหางานวิจัย</h1><p>ค้นหาและคัดกรองงานวิจัยตามข้อมูลจากคลังงานวิจัย</p></div><div class="search-layout"><section class="card results">${searchBox()}<div class="result-count">พบงานวิจัย ${a.length} รายการ</div><div class="list">${a.length?a.map(card).join(''):`<div class="empty">ไม่พบงานวิจัยที่ตรงกับคำค้นหา<br>ลองเปลี่ยนคำค้นหาหรือปรับตัวกรอง</div>`}</div></section><aside class="card filter"><h3>คัดกรอง</h3><div class="field"><label>ปี</label><select id="year">${opts(years(),S.year)}</select></div><div class="field"><label>คณะ</label><select id="faculty">${opts(faculties(),S.faculty)}</select></div><div class="field"><label>สาขาวิชา</label><select id="field">${opts(fields(),S.field)}</select></div><div class="field"><label>หมวดหมู่ (ตามคณะ)</label><select id="category">${opts(categoriesList(),S.category)}</select></div><div class="field"><label>เรียงตาม</label><select id="sortSelect"><option value="new" ${S.sort==='new'?'selected':''}>ใหม่ → เก่า</option><option value="old" ${S.sort==='old'?'selected':''}>เก่า → ใหม่</option><option value="az" ${S.sort==='az'?'selected':''}>ชื่อเรื่อง A → Z</option></select></div><button class="clear" id="clear">ล้างตัวกรองทั้งหมด</button></aside></div>`
 }
 function detail(id){
  const r=DATA.find(x=>x.id===id)||DATA[0];
@@ -184,10 +186,10 @@ function detail(id){
 }
 function categories(){
  const cats=categoriesList().filter(x=>x!=='ทั้งหมด');
- return `<div class="pagehead"><div class="crumb">หน้าหลัก / หมวดหมู่</div><h1>หมวดหมู่งานวิจัย</h1><p>เลือกหมวดหมู่จากข้อมูลที่มีอยู่ใน Google Sheets</p></div><div class="category-grid">${cats.length?cats.map(c=>`<button class="card category-card" data-cat="${esc(c)}"><div class="sym">▣</div><h3>${esc(c)}</h3><p>${DATA.filter(r=>r.category===c).length} งานวิจัย</p></button>`).join(''):`<div class="empty">ยังไม่มีข้อมูลหมวดหมู่</div>`}</div>`
+ return `<div class="pagehead"><div class="crumb">หน้าหลัก / หมวดหมู่</div><h1>หมวดหมู่งานวิจัยตามคณะ</h1><p>เลือกคณะที่เกี่ยวข้องเพื่อค้นหางานวิจัยได้สะดวกยิ่งขึ้น</p></div><div class="category-grid">${cats.length?cats.map(c=>`<button class="card category-card" data-cat="${esc(c)}"><div class="sym">▣</div><h3>${esc(c)}</h3><p>${DATA.filter(r=>r.faculty===c).length} งานวิจัยในคณะนี้</p></button>`).join(''):`<div class="empty">ยังไม่มีข้อมูลหมวดหมู่</div>`}</div>`
 }
 function about(){
- return `<div class="pagehead"><div class="crumb">หน้าหลัก / เกี่ยวกับเรา</div><h1>เกี่ยวกับเว็บไซต์</h1><p>พื้นที่กลางสำหรับการค้นคว้างานวิจัยของนิสิตมหาวิทยาลัย</p></div><div class="about-grid"><section class="card about"><h2>แหล่งรวมงานวิจัยสำหรับนิสิตมหาวิทยาลัย</h2><p>เว็บไซต์นี้เชื่อมข้อมูลจาก Google Sheets เพื่อให้รายการงานวิจัยและผลการตรวจสอบสามารถปรับปรุงได้โดยไม่ต้องแก้โค้ดหน้าเว็บทุกครั้ง</p><div class="features"><div class="feature"><i class="ico">⌕</i><span><b>ค้นหาได้ง่าย</b>ค้นหาด้วยชื่อเรื่อง ผู้แต่ง คำสำคัญ และข้อมูลด้านวิชาการ</span></div><div class="feature"><i class="ico">✓</i><span><b>ดูผลการตรวจสอบ</b>แสดงผู้ตรวจ เกณฑ์ และสรุปผลการตรวจสอบจาก Sheet</span></div><div class="feature"><i class="ico">↗</i><span><b>เข้าถึงแหล่งต้นฉบับ</b>เปิดลิงก์งานวิจัยหรือแหล่งที่มาที่บันทึกไว้</span></div><div class="feature"><i class="ico">▤</i><span><b>ไม่มีระบบสมาชิก</b>ไม่ต้อง Login และไม่ต้องสมัครบัญชี</span></div></div></section><section class="card about about-quote"><div class="quote-icon">▣</div><h2>ข้อมูลจาก Google Sheets</h2><p>${DATA_SOURCE==='google'?'เว็บไซต์กำลังใช้ข้อมูลจาก Google Sheets โดยตรง':'ยังไม่สามารถอ่าน Google Sheets ได้ จึงใช้ข้อมูลสำรองในเว็บไซต์'}</p></section></div>`
+ return `<div class="pagehead"><div class="crumb">หน้าหลัก / เกี่ยวกับเรา</div><h1>เกี่ยวกับเว็บไซต์</h1><p>พื้นที่กลางสำหรับการค้นคว้างานวิจัยของนิสิตมหาวิทยาลัย</p></div><div class="about-grid"><section class="card about"><h2>แหล่งรวมงานวิจัยสำหรับนิสิตมหาวิทยาลัย</h2><p>เว็บไซต์นี้เชื่อมข้อมูลจาก Google Sheets เพื่อให้รายการงานวิจัยและผลการตรวจสอบสามารถปรับปรุงได้โดยไม่ต้องแก้โค้ดหน้าเว็บทุกครั้ง</p><div class="features"><div class="feature"><i class="ico">⌕</i><span><b>ค้นหาได้ง่าย</b>ค้นหาด้วย ID งานวิจัย ชื่อเรื่อง ผู้แต่ง คำสำคัญ และข้อมูลด้านวิชาการ</span></div><div class="feature"><i class="ico">✓</i><span><b>ดูผลการตรวจสอบ</b>แสดงผู้ตรวจ เกณฑ์ และสรุปผลการตรวจสอบจาก Sheet</span></div><div class="feature"><i class="ico">↗</i><span><b>เข้าถึงแหล่งต้นฉบับ</b>เปิดลิงก์งานวิจัยหรือแหล่งที่มาที่บันทึกไว้</span></div><div class="feature"><i class="ico">▤</i><span><b>ไม่มีระบบสมาชิก</b>ไม่ต้อง Login และไม่ต้องสมัครบัญชี</span></div></div></section><section class="card about about-quote"><div class="quote-icon">▣</div><h2>ข้อมูลจาก Google Sheets</h2><p>${DATA_SOURCE==='google'?'เว็บไซต์กำลังใช้ข้อมูลจาก Google Sheets โดยตรง':'ยังไม่สามารถอ่าน Google Sheets ได้ จึงใช้ข้อมูลสำรองในเว็บไซต์'}</p></section></div>`
 }
 function route(){const h=location.hash.replace('#','')||'home';const [page,id]=h.split('/');return page==='detail'?['detail',id]:[page,''];}
 function render(){
