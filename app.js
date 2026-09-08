@@ -42,12 +42,20 @@ function parseCSV(text){
   return rows;
 }
 
+function normKey(s){return clean(s).replace(/^\uFEFF/,'').replace(/\s+/g,' ')}
 function headerMap(headers){
-  const m={}; headers.forEach((h,i)=>m[clean(h)]=i); return m;
+  const m={}; headers.forEach((h,i)=>{const k=normKey(h); if(k)m[k]=i;}); return m;
 }
 function val(row,map,...names){
-  for(const n of names){ if(map[n]!==undefined) return clean(row[map[n]]); }
+  for(const n of names){ const k=normKey(n); if(map[k]!==undefined) return clean(row[map[k]]); }
   return '';
+}
+function normId(v){return clean(v).replace(/^\uFEFF/,'').replace(/\s+/g,'').toUpperCase()}
+function findByIdOrTitle(list,id,title){
+  const nid=normId(id);
+  if(nid){const byId=list.find(x=>normId(x.id)===nid); if(byId)return byId;}
+  const nt=normKey(title).toLocaleLowerCase('th-TH');
+  return nt?list.find(x=>normKey(x.title).toLocaleLowerCase('th-TH')===nt):undefined;
 }
 function rowsFromCSV(text){
   const rows=parseCSV(text); if(!rows.length)return [];
@@ -85,7 +93,7 @@ function mapVerification(text){
   rowsFromCSV(text).forEach(({r,map})=>{
     const id=val(r,map,'ID งานวิจัย');
     const title=val(r,map,'ชื่องานวิจัย');
-    const key=id||title;
+    const key=normId(id)||normKey(title);
     if(!key)return;
     out[key]={
       id,title,
@@ -118,21 +126,27 @@ function mapProposed(text){
 
 async function loadData(){
   try{
-    const [research, verification, proposed]=await Promise.all([
-      fetchSheet(SHEET_CONFIG.sheets.research),fetchSheet(SHEET_CONFIG.sheets.verification),fetchSheet(SHEET_CONFIG.sheets.proposed)
+    // โหลดแต่ละชีตแยกกัน: ถ้า 'ตรวจสอบความน่าเชื่อถือ' หรือ 'เสนอ' มีปัญหา
+    // จะไม่ทำให้ข้อมูลจาก 'รวบรวมวิจัย' ทั้งหมดตกไปเป็น fallback
+    const [researchRes, verificationRes, proposedRes]=await Promise.allSettled([
+      fetchSheet(SHEET_CONFIG.sheets.research),
+      fetchSheet(SHEET_CONFIG.sheets.verification),
+      fetchSheet(SHEET_CONFIG.sheets.proposed)
     ]);
-    const mapped=mapResearch(research), checks=mapVerification(verification);
-    const p=mapProposed(proposed);
+    if(researchRes.status!=='fulfilled') throw researchRes.reason||new Error('Research sheet unavailable');
+    const mapped=mapResearch(researchRes.value);
+    const checks=verificationRes.status==='fulfilled'?mapVerification(verificationRes.value):{};
+    const p=proposedRes.status==='fulfilled'?mapProposed(proposedRes.value):[];
     mapped.forEach(r=>{
-      const check=checks[r.id]||checks[r.title]||{};
-      const proposal=p.find(x=>x.id===r.id||(!r.id && x.title===r.title))||{};
+      const check=checks[normId(r.id)]||checks[normKey(r.title)]||{};
+      const proposal=findByIdOrTitle(p,r.id,r.title)||{};
       Object.assign(r,check);
       if(!r.faculty) r.faculty=proposal.faculty||'';
       if(!r.field) r.field=proposal.field||'';
       if(!r.source) r.source=proposal.source||'';
       if(!r.link) r.link=proposal.link||'';
       // หมวดหมู่ของเว็บไซต์ยึดจาก 'คณะที่เกี่ยวข้อง' ตามโครงสร้าง Google Sheets
-      r.category=r.faculty||proposal.faculty||'';
+      r.category=clean(r.faculty||proposal.faculty||'');
     });
     if(mapped.length){DATA=mapped;PROPOSED=p;DATA_SOURCE='google';}
     else throw new Error('No research rows');
@@ -146,7 +160,7 @@ async function loadData(){
 function years(){return ['ทั้งหมด',...new Set(DATA.map(r=>r.year).filter(Boolean))].sort((a,b)=>a==='ทั้งหมด'?-1:b==='ทั้งหมด'?1:String(b).localeCompare(String(a),'th'))}
 function faculties(){return ['ทั้งหมด',...new Set(DATA.map(r=>r.faculty).filter(Boolean))]}
 function fields(){return ['ทั้งหมด',...new Set(DATA.map(r=>r.field).filter(Boolean))]}
-function categoriesList(){return ['ทั้งหมด',...new Set(DATA.map(r=>r.category).filter(Boolean))]}
+function categoriesList(){return ['ทั้งหมด',...new Set(DATA.map(r=>clean(r.faculty||r.category)).filter(Boolean))]}
 function opts(arr,sel){return arr.map(x=>`<option value="${esc(x)}" ${x===sel?'selected':''}>${esc(x)}</option>`).join('')}
 function results(){
  let a=DATA.filter(r=>{
